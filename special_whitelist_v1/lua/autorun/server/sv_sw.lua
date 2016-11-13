@@ -1,6 +1,28 @@
 --[[
 	Server
+	
+	
+	local function stuff( ply )
+	local info = {
+		name = ply:Nick(),
+		steamid = ply:SteamID(),
+		time = os.time()
+	}
+
+	table.insert( players, info )
+end
+
+hook.Add( "PlayerDisconnected", "wat", stuff )
+
+
+https://facepunch.com/showthread.php?t=1349916
+
+
 --]]
+
+-- mytable["wow"] = "Tutorial" -- steamid nick
+-- print( mytable["wow"] ) = Tutorial
+-- table.insert( whitelisted, SteamAddWhite = SteamAddNick )
 
 if (SERVER) then
 
@@ -14,7 +36,6 @@ local isadminonline
 local connectedadmins = {}
 local antihudpsam = false
 
-
 local function saving_whitelist()
 	
 	file.Write( loading_whitelist_var, util.TableToJSON( whitelisted ) ) 
@@ -22,16 +43,60 @@ local function saving_whitelist()
 
 end
 
+--[[
+	Stop player from doing shit, hooks!
+]]--
+
+--------------- No Props
 local function NoPropSpawn_Whitelist( ply, model, ent )
-	if isadminonline == false then
 	if not table.HasValue( whitelisted, ply:SteamID() ) then
 		ent:Remove()
-	end
+		ply:SendLua( 'notification.AddLegacy( "You are not allowed to spawn props!", NOTIFY_ERROR, 2 ) surface.PlaySound( "common/warning.wav" )' )
 	end
 end
- 
 hook.Add( "PlayerSpawnedProp", "NoPropSpawn_Whitelist", NoPropSpawn_Whitelist)
+---------------
 
+--------------- No NPCs
+local function PlayerSpawnedNPC ( ply, ent )
+	if not table.HasValue( whitelisted, ply:SteamID() ) then
+		ent:Remove()
+		ply:SendLua( 'notification.AddLegacy( "You are not allowed to spawn npcs!", NOTIFY_ERROR, 2 ) surface.PlaySound( "common/warning.wav" )' ) -- Resource/warning.wav buttons/combine_button7.wav
+	end
+end 
+hook.Add( "PlayerSpawnedNPC", "PlayerSpawnedNPC", PlayerSpawnedNPC)
+---------------
+
+-- Don't even ask why I did them differently :P
+
+-------------- No Chat
+hook.Add( "PlayerSay", "No_Chat__", function( ply, text, team )
+	if string.lower( text ) == "!whitelist" then 
+
+	if ply:IsSuperAdmin() then
+			net.Start( "WhitelistMenu__" )
+			net.Send( ply )	
+			return
+	else
+			ply:SendLua( 'notification.AddLegacy( "You are not the required rank!", NOTIFY_ERROR, 2 ) surface.PlaySound( "common/warning.wav" )' ) 	
+			return
+	end 
+	
+	elseif not table.HasValue( whitelisted, ply:SteamID() ) then return ""
+		ply:SendLua( 'notification.AddLegacy( "You are not allowed to talk!", NOTIFY_ERROR, 2 ) surface.PlaySound( "common/warning.wav" )' ) 
+	end
+	
+end )
+---------------
+
+-------------- No Tools
+hook.Add( "CanTool", "No_Tool__", function( ply, tr, tool )
+	if not table.HasValue( whitelisted, ply:SteamID() ) then
+		return "", 
+		ply:SendLua( 'notification.AddLegacy( "You are not allowed to use tools!", NOTIFY_ERROR, 2 ) surface.PlaySound( "common/warning.wav" )' ) 
+	end
+end )
+---------------
 
 hook.Add( "Initialize", "SpecialWhitelist :D", function()
 
@@ -48,13 +113,15 @@ hook.Add( "Initialize", "SpecialWhitelist :D", function()
 		saving_whitelist()
 			
 	end
+	
+	fuckwiththemgood()
 
 end)
 
-
+--[[
 hook.Add( "PlayerSay", "OpeningWhitelist", function( ply, text, public )
 	text = string.lower( text ) -- Make the chat message entirely lowercase
-	if ( text == "!whitelist" ) then
+	if ( text == "!whitelist" ) then 
 	
 		if ply:IsSuperAdmin() then
 			net.Start( "WhitelistMenu__" )
@@ -63,61 +130,86 @@ hook.Add( "PlayerSay", "OpeningWhitelist", function( ply, text, public )
 			else
 			
 			ply:ChatPrint( "You ain't superadmin M8y" )
+			ply:SendLua( 'notification.AddLegacy( "You are not the required rank!", NOTIFY_ERROR, 2 ) surface.PlaySound( "common/warning.wav" )' ) 
 			
 		end
 		
 		return text
 	end
 end )
+]]--
 
+--hook.Add( "Think", "SpecialWhitelist :D", function()
 
-hook.Add( "Think", "SpecialWhitelist :D", function()
+--if isadminonline == false then
 
-if isadminonline == false then
+local function fuckwiththemgood()
+
+	timer.Create( "fuckwiththemgood", 13, 0, function()
 
 	for k, v in pairs( player.GetAll() ) do
 		
 		if not table.HasValue( whitelisted, v:SteamID() ) then
 		
-			if not v:IsFrozen() then
-			v:Freeze( true )
-			print("Freeze")
-			end
+			--if not v:IsFrozen() then
+			--v:Freeze( true )
+			--print("Freeze")
+			--end
 			
 			if antihudpsam == false then
-				antihudpsam = true
+				antihudpsam = true 
+					if v:Health() > 1 then
+					v:Kill() 
+					end
 				v:PrintMessage( HUD_PRINTCENTER, "You are not on the whitelist!" )
 			
-				timer.Simple( 5, function()
+				timer.Simple( 12, function()
+						if v:Health() < 1 then
+						v:Spawn()
+						end
 					antihudpsam = false
 				end)
 			end
 			
 		else
 			
-			if v:IsFrozen() then
-			v:Freeze( false )
-			print("Unfreeze")
-			end
+			--if v:IsFrozen() then
+			--v:Freeze( false )
+			--print("Unfreeze")
+			--end
 		 
 		end
 	end
+	--end
+	end )
 	end
-	
-end )
+--end )
 
+
+--[[
+	Banned groups
+
+
+hook.Add("CheckPassword", "BadSteamGroup", function(sid,  _, _, _, _)
+	return !table.HasValue(Players, sid)
+end)
+]]--
+
+--[[
+	Admin online resolver
+]]--
 
 hook.Add( "PlayerSpawn", "SpecialWhitelist :D", function( ply ) --PlayerInitialSpawn
 
-	if ply:IsAdmin() and not table.HasValue( whitelisted, ply:SteamID() ) then
-		table.insert( whitelisted, ply:SteamID() )
-		saving_whitelist()
-	end
+	--if ply:IsAdmin() and not table.HasValue( whitelisted, ply:SteamID() ) then
+		--table.insert( whitelisted, ply:SteamID() )
+		--saving_whitelist()
+	--end
 	
-	if ply:IsAdmin() and not table.HasValue( connectedadmins, ply:SteamID() ) then
-		isadminonline = true
-		table.insert( connectedadmins, ply:SteamID() )
-	end
+	--if ply:IsAdmin() and not table.HasValue( connectedadmins, ply:SteamID() ) then
+		--isadminonline = true
+		--table.insert( connectedadmins, ply:SteamID() )
+	--end
 
 end)
 
@@ -132,12 +224,16 @@ hook.Add( "PlayerDisconnected", "SpecialWhitelist :D", function( ply )
 				
 			end
 		
-		if next(connectedadmins) == nil then
-			isadminonline = false
-		end
+		--if next(connectedadmins) == nil then
+			--isadminonline = false
+		--end
 
 end)
 
+
+--[[
+	Network messages
+]]--
 
 net.Receive( "AddToWhiteList__", function( len, ply )
 
